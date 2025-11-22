@@ -1,0 +1,9 @@
+docroot
+/tmp
+.DS_Store
+._*
+*.zip
+*.gz
+.vagrant
+*.log
+.vault_pass.txt

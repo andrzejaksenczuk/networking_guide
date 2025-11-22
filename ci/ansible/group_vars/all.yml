@@ -1,0 +1,27 @@
+project_root: /opt/pwr_lab
+
+# Nginx
+http_port: 80
+https_port: 443
+redirect_http_to_https: false   # true = 301 will 80 -> 443
+cert_common_name: "localhost"
+cert_san_ips: ["127.0.0.1"]     
+cert_days: 825
+
+# FTP PASV – set host ip if you run it from other machine
+ftp_pasv_address: "127.0.0.1"
+ftp_pasv_min: 21100
+ftp_pasv_max: 21110
+
+# Technitium
+dns_forwarders: "1.1.1.1,8.8.8.8"
+dns_admin_password: "cisco123"
+dns_domain: "dns.lab"
+
+# networks and names
+docker_network: "pwr_lab"
+vols:
+  ftp: "ftp_data"
+  tftp: "tftp_data"
+  syslog: "syslog_logs"
+  dns: "dns_data"

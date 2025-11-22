@@ -1,0 +1,6 @@
+[all]
+# localhost ansible_connection=local ansible_user=aak
+# localhost ansible_user=aak ansible_become=yes
+
+[lab]
+localhost ansible_connection=local ansible_user=aak

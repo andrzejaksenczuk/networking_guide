@@ -1,0 +1,20 @@
+---
+- import_tasks: ./install_base_deps.yml
+# - import_tasks: ./set_ufw.yml
+
+- block:   
+  # Custom facts
+  - name: Ensure the facts directory exists
+    file:
+      path: /etc/ansible/facts.d
+      state: directory
+      mode: '0755'
+
+  - name: Copy the fact file
+    copy:
+      src: ./roles/common/files/docker.fact
+      dest: /etc/ansible/facts.d/docker.fact
+      mode: '0755'
+
+  become: true
+

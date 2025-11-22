@@ -1,0 +1,42 @@
+- block:
+  - name: Install UFW
+    apt:
+      name: ufw
+      state: present
+      update_cache: yes
+
+  - name: Set UFW to deny all incoming by default
+    ufw:
+      state: enabled
+      policy: deny
+      direction: incoming
+
+  - name: Set UFW to allow all outgoing by default
+    ufw:
+      state: enabled
+      policy: allow
+      direction: outgoing
+
+  - name: Allow SSH connections
+    ufw:
+      rule: allow
+      name: OpenSSH
+      state: enabled
+
+  - name: Allow HTTP connections
+    ufw:
+      rule: allow
+      port: 80
+      proto: tcp
+      state: enabled
+
+  - name: Allow HTTPS connections
+    ufw:
+      rule: allow
+      port: 443
+      proto: tcp
+      state: enabled
+
+  - name: Enable UFW
+    ufw:
+      state: enabled

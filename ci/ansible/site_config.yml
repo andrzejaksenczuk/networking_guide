@@ -1,0 +1,7 @@
+---
+- name: "Install packages and configure the target"
+  hosts: workshop
+  vars_files:
+    - vault.yml
+  roles:
+    - common

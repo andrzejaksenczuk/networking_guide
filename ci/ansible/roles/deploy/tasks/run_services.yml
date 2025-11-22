@@ -1,0 +1,102 @@
+---
+- block:
+    - name: Remove possibly conflicting containers by name (keep volumes)
+      community.docker.docker_container:
+        name: "{{ item }}"
+        state: absent
+        force_kill: true
+        keep_volumes: true
+      loop:
+        - technitium-dns
+        - ftp
+        - tftp
+        - syslog
+        - frontail
+        - snmp
+        - ntp
+        - nginx
+      ignore_errors: true
+      tags: [app]
+
+    - name: Compose down first (keep volumes) when stack_reset
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_root }}"
+        state: absent
+        remove_orphans: true
+      when: stack_reset | default(false)
+      tags: [app]
+
+    - name: Ensure stack is up (idempotent)
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_root }}"
+        state: present
+        remove_orphans: true
+      register: compose_result
+      tags: [app]
+
+  rescue:
+    - name: Compose down after failure (keep volumes)
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_root }}"
+        state: absent
+        remove_orphans: true
+
+    - name: Retry ensure stack is up (idempotent)
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_root }}"
+        state: present
+        remove_orphans: true
+      register: compose_result
+
+  always: []
+
+- block:
+    - name: Wait for nginx HTTP
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 80, timeout: 30 }
+    - name: Wait for nginx HTTPS
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 443, timeout: 30 }
+    - name: Wait for Frontail UI
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 9001, timeout: 30 }
+    - name: Wait for Technitium web console
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 5380, timeout: 30 }
+    - name: Wait for FTP control channel
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 21, timeout: 30 }
+    - name: Wait for syslog TCP
+      ansible.builtin.wait_for: { host: "127.0.0.1", port: 514, timeout: 30 }
+
+    - name: Collect container names from compose_result
+      ansible.builtin.set_fact:
+        up_container_names: "{{ compose_result.containers | default([]) | map(attribute='Name') | list }}"
+
+    - name: Show container names (debug)
+      ansible.builtin.debug:
+        var: up_container_names
+
+    - name: Fetch container infos
+      community.docker.docker_container_info:
+        name: "{{ item }}"
+      loop: "{{ up_container_names }}"
+      register: containers_info
+
+    - name: Assert containers are running
+      ansible.builtin.assert:
+        that:
+          - item.exists | default(false)
+          - item.container.State.Running | default(false)
+        fail_msg: "Container {{ item.item }} is NOT running (state={{ item.container.State | default({}) }})"
+        success_msg: "Container {{ item.item }} is running"
+      loop: "{{ containers_info.results }}"
+
+    - name: Gather compose logs on failure
+      when: containers_info.results | selectattr('container.State.Running','equalto',false) | list | length > 0
+      ansible.builtin.shell: docker compose -f {{ project_root }}/docker-compose.yml logs --tail=200
+      register: docker_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Show compose logs
+      when: docker_logs is defined
+      ansible.builtin.debug:
+        var: docker_logs.stdout_lines
+
+  tags: [app]

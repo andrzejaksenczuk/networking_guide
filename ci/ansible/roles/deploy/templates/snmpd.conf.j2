@@ -1,0 +1,11 @@
+agentAddress  udp:161
+sysLocation   "Lab"
+sysContact    "andrzej.aksenczuk@gmail.com"
+sysName    "my-lab-snmp"
+
+view all included .1
+rocommunity public default -V all
+
+disableAuthorization yes
+authCommunity log,execute,net public
+outputOption  s  # log to syslog

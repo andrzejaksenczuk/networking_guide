@@ -1,0 +1,87 @@
+- block:
+  - name: Create project directories
+    ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      mode: "0755"
+    loop:
+      - "{{ project_root }}"
+      - "{{ project_root }}/www"
+      - "{{ project_root }}/nginx/conf.d"
+      - "{{ project_root }}/nginx/certs"
+      - "{{ project_root }}/syslog/config"
+      - "{{ project_root }}/snmp"
+
+
+  - name: Place demo index.html
+    ansible.builtin.copy:
+      src: www/index.html
+      dest: "{{ project_root }}/www/index.html"
+      mode: "0644"
+
+  - name: Render nginx vhost
+    ansible.builtin.template:
+      src: nginx_default.conf.j2
+      dest: "{{ project_root }}/nginx/conf.d/default.conf"
+      mode: "0644"
+
+- name: Generate OpenSSL config (for self-signed cert)
+  ansible.builtin.copy:
+    dest: "{{ project_root }}/nginx/certs/openssl.cnf"
+    mode: "0644"
+    content: |
+      [req]
+      default_bits = 2048
+      prompt = no
+      default_md = sha256
+      x509_extensions = v3_req
+      distinguished_name = dn
+      [dn]
+      C=PL
+      ST=Mazowieckie
+      L=Warszawa
+      O=Lab
+      OU=Docker
+      CN={{ cert_common_name | default('localhost') }}
+      [v3_req]
+      subjectAltName = @alt_names
+      [alt_names]
+      DNS.1 = {{ cert_common_name | default('localhost') }}
+      IP.1  = {{ cert_san_ip | default('127.0.0.1') }}
+
+- name: Create self-signed cert (if missing)
+  ansible.builtin.command:
+    cmd: >
+      openssl req -x509 -nodes -days {{ cert_days }}
+      -newkey rsa:2048
+      -keyout {{ project_root }}/nginx/certs/selfsigned.key
+      -out    {{ project_root }}/nginx/certs/selfsigned.crt
+      -config {{ project_root }}/nginx/certs/openssl.cnf
+  args:
+    creates: "{{ project_root }}/nginx/certs/selfsigned.crt"
+
+- name: Fix cert permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ project_root }}/nginx/certs/selfsigned.key", mode: "0600" }
+    - { path: "{{ project_root }}/nginx/certs/selfsigned.crt", mode: "0644" }
+
+- name: Render syslog-ng.conf
+  ansible.builtin.template:
+    src: syslog-ng.conf.j2
+    dest: "{{ project_root }}/syslog/config/syslog-ng.conf"
+    mode: "0644"
+
+- name: Render snmpd.conf
+  ansible.builtin.template:
+    src: snmpd.conf.j2
+    dest: "{{ project_root }}/snmp/snmpd.conf"
+    mode: "0644"
+
+- name: Render docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ project_root }}/docker-compose.yml"
+    mode: "0644"

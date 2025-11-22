@@ -1,0 +1,9 @@
+---
+
+- name: Deploy and run services 
+  hosts: lab
+  vars_files:
+    - vault.yml
+    - host_vars/localhost.yml
+  roles:
+    - { role: deploy, tags: ['deploy'] }

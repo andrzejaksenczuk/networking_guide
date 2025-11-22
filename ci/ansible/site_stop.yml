@@ -1,0 +1,32 @@
+- name: Stop/remove lab stack
+  hosts: lab
+  become: yes
+  vars_files:
+    - vault.yml
+    - host_vars/localhost.yml
+  tasks:
+    # down containtes but keep data
+    - name: Compose down (remove containers + network, keep volumes)
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_root }}"
+        state: absent
+        remove_orphans: true
+    
+    # stop no remove  
+    # - name: Stop containers (keep them)
+    #   community.docker.docker_container:
+    #     name: "{{ item }}"
+    #     state: stopped
+    #   loop:
+    #     - technitium-dns
+    #     - ftp
+    #     - tftp
+    #     - syslog
+    #     - frontail
+    #     - snmp
+    #     - ntp
+        # - nginx
+
+    # down + -v (remove all data) total cleanup
+    # - name: Compose down with volumes
+    #   ansible.builtin.command: docker compose -f {{ project_root }}/docker-compose.yml down -v

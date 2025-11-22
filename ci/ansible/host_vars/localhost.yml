@@ -1,0 +1,8 @@
+# deployment
+version: "1.0.0"
+env: "prod"
+
+project_src: .
+backup_dest: .
+
+project_dest: /home/{{ ansible_user }}/server_{{ env }}

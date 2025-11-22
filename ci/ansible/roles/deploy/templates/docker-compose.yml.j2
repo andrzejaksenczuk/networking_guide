@@ -1,0 +1,126 @@
+services:
+  technitium:
+    image: technitium/dns-server:latest
+    container_name: technitium-dns
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Warsaw
+      - DNS_SERVER_ADMIN_PASSWORD={{ dns_admin_password }}
+      - DNS_SERVER_DOMAIN={{ dns_domain }}
+      - DNS_SERVER_FORWARDERS={{ dns_forwarders }}
+      - DNS_SERVER_FORWARDER_PROTOCOL=Udp
+      - DNS_SERVER_RECURSION=AllowOnlyForPrivateNetworks
+      - DNS_SERVER_LOG_USING_LOCAL_TIME=true
+    ports:
+      - "1053:53/udp"
+      - "1053:53/tcp"
+      - "5380:5380/tcp"
+    volumes:
+      - {{ vols.dns }}:/etc/dns
+    networks: [{{ docker_network }}]
+
+  ftp:
+    image: fauria/vsftpd
+    container_name: ftp
+    restart: unless-stopped
+    environment:
+      - FTP_USER=admin
+      - FTP_PASS=cisco123
+      - PASV_ADDRESS={{ ftp_pasv_address }}
+      - PASV_MIN_PORT={{ ftp_pasv_min }}
+      - PASV_MAX_PORT={{ ftp_pasv_max }}
+      - LOG_STDOUT=1
+    ports:
+      - "21:21/tcp"
+      - "{{ ftp_pasv_min }}-{{ ftp_pasv_max }}:{{ ftp_pasv_min }}-{{ ftp_pasv_max }}/tcp"
+    volumes:
+      - {{ vols.ftp }}:/home/vsftpd
+    networks: [{{ docker_network }}]
+
+  tftp:
+    image: busybox:stable
+    container_name: tftp
+    command: ["sh","-c","exec udpsvd -vE 0.0.0.0 69 tftpd -c -l /var/tftpboot"]
+    ports:
+      - "69:69/udp"
+    volumes:
+      - {{ vols.tftp }}:/var/tftpboot
+    restart: unless-stopped
+    networks: [{{ docker_network }}]
+
+  syslog:
+    image: lscr.io/linuxserver/syslog-ng:latest
+    container_name: syslog
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Warsaw
+    ports:
+      - "514:5514/udp"
+      - "514:5514/tcp"
+    command: ["syslog-ng","-f","/etc/syslog-ng/syslog-ng.conf","-p","/run/syslog-ng.pid","-F"]
+    volumes:
+      - {{ project_root }}/syslog/config/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf:ro
+      - {{ vols.syslog }}:/var/log/syslog
+    networks: [{{ docker_network }}]
+
+  frontail:
+    image: mthenw/frontail:latest
+    container_name: frontail
+    restart: unless-stopped
+    depends_on: [syslog]
+    ports:
+      - "9001:9001"
+    volumes:
+      - {{ vols.syslog }}:/var/log/syslog:ro
+    command:
+      - "--ui-highlight"
+      - "--theme"
+      - "dark"
+      - "/var/log/syslog/udp.log"
+      - "/var/log/syslog/tcp.log"
+    networks: [{{ docker_network }}]
+
+  snmp:
+    image: polinux/snmpd
+    container_name: snmp
+    restart: unless-stopped
+    environment: [TZ=Europe/Warsaw]
+    ports:
+      - "161:161/udp"
+    volumes:
+      - {{ project_root }}/snmp/snmpd.conf:/etc/snmp/snmpd.conf:ro
+    networks: [{{ docker_network }}]
+
+  ntp:
+    image: cturra/ntp:latest
+    container_name: ntp
+    restart: unless-stopped
+    environment: [TZ=Europe/Warsaw]
+    ports:
+      - "123:123/udp"
+    networks: [{{ docker_network }}]
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "{{ http_port }}:80"
+      - "{{ https_port }}:443"
+    volumes:
+      - {{ project_root }}/www:/usr/share/nginx/html:ro
+      - {{ project_root }}/nginx/conf.d:/etc/nginx/conf.d:ro
+      - {{ project_root }}/nginx/certs:/etc/nginx/certs:ro
+    networks: [{{ docker_network }}]
+
+volumes:
+  {{ vols.ftp }}:
+  {{ vols.tftp }}:
+  {{ vols.syslog }}:
+  {{ vols.dns }}:
+
+networks:
+  {{ docker_network }}:
+    driver: bridge

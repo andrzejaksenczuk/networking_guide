@@ -1,0 +1,5 @@
+---
+- include_tasks: ./deploy_services.yml
+  tags: 
+    - services
+- include_tasks: ./run_services.yml

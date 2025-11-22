@@ -1,0 +1,26 @@
+{% if redirect_http_to_https %}
+server {
+  listen {{ http_port }};
+  server_name _;
+  return 301 https://$host$request_uri;
+}
+{% else %}
+server {
+  listen {{ http_port }};
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+}
+{% endif %}
+
+server {
+  listen {{ https_port }} ssl;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  ssl_certificate     /etc/nginx/certs/selfsigned.crt;
+  ssl_certificate_key /etc/nginx/certs/selfsigned.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_prefer_server_ciphers on;
+}

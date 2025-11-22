@@ -1,0 +1,23 @@
+@version: 4.2
+@include "scl.conf"
+
+source s_net_udp { syslog(transport(udp) ip("0.0.0.0") port(5514)); };
+source s_net_tcp { syslog(transport(tcp) ip("0.0.0.0") port(5514)); };
+source s_internal { internal(); };
+
+destination d_udp {
+  file("/var/log/syslog/udp.log"
+       create-dirs(yes) owner("abc") group("abc")
+       perm(0664) dir_perm(0775)
+       template("${ISODATE} ${HOST} ${PROGRAM} ${MSGHDR}${MSG}\n"));
+};
+destination d_tcp {
+  file("/var/log/syslog/tcp.log"
+       create-dirs(yes) owner("abc") group("abc")
+       perm(0664) dir_perm(0775)
+       template("${ISODATE} ${HOST} ${PROGRAM} ${MSGHDR}${MSG}\n"));
+};
+
+log { source(s_internal); destination(d_udp); };
+log { source(s_net_udp);  destination(d_udp); };
+log { source(s_net_tcp);  destination(d_tcp); };

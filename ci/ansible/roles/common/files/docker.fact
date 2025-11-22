@@ -1,0 +1,9 @@
+#!/bin/bash
+
+docker_running_images=$(docker ps)
+
+cat << EOF
+{
+    "docker_ps": "$docker_running_images"
+}
+EOF
